@@ -9,14 +9,13 @@ namespace LowLevelDotNET.Routing
     {
         public string Path {get;}
         public string Method {get;}
-        public Func<HttpListenerContext, Task> Handler {get;}
+        public Func<RequestContext, Task> Handler {get;}
 
-        public Route(string path, string method, Func<HttpListenerContext, Task> handler)
+        public Route(string path, string method, Func<RequestContext, Task> handler)
         {
             Path = path;
             Method = method;
             Handler = handler;
         }
-
     }
 }

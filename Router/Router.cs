@@ -11,22 +11,53 @@ namespace LowLevelDotNET.Routing
         private readonly List<MiddlewareDelegate> _middlewares = new();
 
 
-        //Ok, então vou precisar de um método que vai adicionar itens a minha lista de rotas, pasasndo o verbo http, path e o handler
-        public void MapGet(string path, Func<HttpListenerContext, Task> handler)
+        //Ok, então vou precisar de um método que vai adicionar itens a minha lista de rotas, passando o verbo http, path e o handler
+        //Mas minhas rotas não estão prontas? Se alguém chamar uma rota que é indevida, ela vai rodar mesmo assim, pq ele vai adicionar
+        public void MapGet(string path, Func<RequestContext, Task> handler)
         {
             _routes.Add(new Route("GET", path, handler));
         }
 
-        public void MapPost(string path, Func<HttpListenerContext, Task> handler)
+        public void MapPost(string path, Func<RequestContext, Task> handler)
         {
             _routes.Add(new Route("POST", path, handler));
         }
-
+        //Isso aq faz sentido, pois os middlewares podem ser adicionados de acordo com o que for necessário
          public void Use(MiddlewareDelegate middleware)
         {
             _middlewares.Add(middleware);
         }
 
+        public bool TryMatch(Route route, string requestPath, out Dictionary<string, string> parameters)
+        {   
+            parameters = new Dictionary<string, string>();
+
+            var routeSegments = route.Path.Split("/", StringSplitOptions.RemoveEmptyEntries); 
+            var requestSegments = requestPath.Split("/", StringSplitOptions.RemoveEmptyEntries);
+
+            if(routeSegments.Length != requestSegments.Length)
+            {
+                return false;
+            }
+
+            for(int i =0; i < routeSegments.Length; i++)
+            {
+                var rSeg = routeSegments[i]; 
+                var reqSeg = requestSegments[i];
+                if(rSeg.StartsWith("{") && rSeg.EndsWith("}"))
+                {
+                   var paramName =  rSeg[1..^1]; //Range Syntax
+                    parameters[paramName] = reqSeg;
+                }else if (!rSeg.Equals(reqSeg, StringComparison.OrdinalIgnoreCase))
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        //Por enquanto ele não faz nada, só manda para o próximo
         public async Task HandleAsync(HttpListenerContext context)
         {
             int index = -1;
@@ -38,6 +69,7 @@ namespace LowLevelDotNET.Routing
                 index++;
                 if (index < _middlewares.Count)
                 {
+                    //Não entendi, se tem outro ele vai e manda o contexto / a func next para ele tbm?
                     await _middlewares[index](context, next);
                 }
                 else
@@ -54,12 +86,19 @@ namespace LowLevelDotNET.Routing
             var path = context.Request.Url.AbsolutePath;
             var method = context.Request.HttpMethod;
             
-            var route = _routes.Find(r => r.Path == path && r.Method == method);
-
-            if(route is not null)
+            foreach(var route in _routes)
             {
-                await route.Handler(context);
-                return;
+                if(route.Method != context.Request.HttpMethod) continue;
+
+                if(TryMatch(route, context.Request.Url.AbsolutePath, out var parameters))
+                {
+                    var reqCtx = new RequestContext(context);
+                    foreach(var kv in parameters)
+                        reqCtx.RouteParams[kv.Key] = kv.Value;
+
+                    await route.Handler(reqCtx); // Handler agora recebe RequestContext
+                    return;
+                }
             }
 
             // 404
