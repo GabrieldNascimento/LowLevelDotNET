@@ -10,9 +10,6 @@ namespace LowLevelDotNET.Routing
         private readonly List<Route> _routes = new();
         private readonly List<MiddlewareDelegate> _middlewares = new();
 
-
-        //Ok, então vou precisar de um método que vai adicionar itens a minha lista de rotas, passando o verbo http, path e o handler
-        //Mas minhas rotas não estão prontas? Se alguém chamar uma rota que é indevida, ela vai rodar mesmo assim, pq ele vai adicionar
         public void MapGet(string path, Func<RequestContext, Task> handler)
         {
             _routes.Add(new Route("GET", path, handler));
@@ -22,7 +19,6 @@ namespace LowLevelDotNET.Routing
         {
             _routes.Add(new Route("POST", path, handler));
         }
-        //Isso aq faz sentido, pois os middlewares podem ser adicionados de acordo com o que for necessário
          public void Use(MiddlewareDelegate middleware)
         {
             _middlewares.Add(middleware);
@@ -57,7 +53,6 @@ namespace LowLevelDotNET.Routing
             return true;
         }
 
-        //Por enquanto ele não faz nada, só manda para o próximo
         public async Task HandleAsync(HttpListenerContext context)
         {
             int index = -1;
@@ -69,7 +64,6 @@ namespace LowLevelDotNET.Routing
                 index++;
                 if (index < _middlewares.Count)
                 {
-                    //Não entendi, se tem outro ele vai e manda o contexto / a func next para ele tbm?
                     await _middlewares[index](context, next);
                 }
                 else
@@ -83,14 +77,14 @@ namespace LowLevelDotNET.Routing
 
         public async Task HandleRouteAsync( HttpListenerContext context)
         {
-            var path = context.Request.Url.AbsolutePath;
+            var path = context.Request.Url.AbsolutePath;//
             var method = context.Request.HttpMethod;
             
             foreach(var route in _routes)
             {
                 if(route.Method != context.Request.HttpMethod) continue;
 
-                if(TryMatch(route, context.Request.Url.AbsolutePath, out var parameters))
+                if(TryMatch(route, path, out var parameters))
                 {
                     var reqCtx = new RequestContext(context);
                     foreach(var kv in parameters)

@@ -26,13 +26,9 @@ namespace LowLevelDotNET.Server
             while (true)
             {
                 var context = await _listener.GetContextAsync();
-                Console.WriteLine($"Recebi uma requisição: {context.Request.HttpMethod} {context.Request.Url}");
+                Console.WriteLine($"Requisição Recebida: {context.Request.HttpMethod} {context.Request.Url}");
 
-                string responseString = "Oi, isso é um teste!";
-                byte[] buffer = Encoding.UTF8.GetBytes(responseString);
-                context.Response.ContentLength64 = buffer.Length;
-                context.Response.OutputStream.Write(buffer, 0, buffer.Length);
-                context.Response.OutputStream.Close();
+                await _router.HandleAsync(context);
             }
         }   
     }

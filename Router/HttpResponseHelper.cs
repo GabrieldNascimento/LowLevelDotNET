@@ -8,7 +8,6 @@ namespace LowLevelDotNET.Routing
 {
     public class HttpResponseHelper
     {
-        //O usuário recebe o buffer de bytes e não objetos, como ele vai ler????
         public static async Task SendStringAsync(HttpListenerContext context, string content, int statusCode = 200)
         {
             byte[] buffer = Encoding.UTF8.GetBytes(content);
